@@ -15,8 +15,6 @@ class ExerciseController extends Controller
 {
     public function create(Course $course): Response
     {
-        $this->authorize('create', Exercise::class);
-
         return Inertia::render('admin/exercises/Edit', [
             'course' => $course,
             'exercise' => null,
@@ -33,8 +31,6 @@ class ExerciseController extends Controller
 
     public function edit(Course $course, Exercise $exercise): Response
     {
-        $this->authorize('update', $exercise);
-
         return Inertia::render('admin/exercises/Edit', [
             'course' => $course,
             'exercise' => $exercise,
@@ -51,8 +47,6 @@ class ExerciseController extends Controller
 
     public function destroy(Course $course, Exercise $exercise): RedirectResponse
     {
-        $this->authorize('delete', $exercise);
-
         $exercise->delete();
 
         return redirect()->route('admin.courses.edit', $course)

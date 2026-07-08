@@ -12,7 +12,7 @@ class UpdateExerciseRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()->is_admin;
+        return auth('admin')->check();
     }
 
     /**

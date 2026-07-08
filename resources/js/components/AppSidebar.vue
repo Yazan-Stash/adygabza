@@ -19,7 +19,7 @@ import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
 
 const page = usePage();
-const isAdmin = computed(() => (page.props.auth as { user?: { is_admin?: boolean } })?.user?.is_admin);
+const isAdmin = computed(() => !!(page.props.auth as { admin?: object })?.admin);
 
 const mainNavItems: NavItem[] = [
     {

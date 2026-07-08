@@ -18,8 +18,15 @@ Route::get('courses/{course}', [\App\Http\Controllers\CourseController::class, '
 // Exercise answer submission (auth required)
 Route::middleware(['auth'])->post('exercises/{exercise}/answer', [\App\Http\Controllers\ExerciseAnswerController::class, 'submit'])->name('exercises.answer');
 
-// Admin panel
-Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {
+// Admin auth (unauthenticated)
+Route::prefix('admin')->name('admin.')->group(function () {
+    Route::get('login', [\App\Http\Controllers\Admin\AdminLoginController::class, 'create'])->name('login');
+    Route::post('login', [\App\Http\Controllers\Admin\AdminLoginController::class, 'store'])->name('login.store');
+    Route::post('logout', [\App\Http\Controllers\Admin\AdminLoginController::class, 'destroy'])->name('logout');
+});
+
+// Admin panel (protected)
+Route::middleware([\App\Http\Middleware\EnsureIsAdmin::class])->prefix('admin')->name('admin.')->group(function () {
     Route::inertia('/', 'admin/Dashboard')->name('dashboard');
 
     Route::resource('courses', \App\Http\Controllers\Admin\CourseController::class)

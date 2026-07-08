@@ -17,10 +17,10 @@ class DatabaseSeeder extends Seeder
             'email' => 'test@example.com',
         ]);
 
-        User::factory()->create([
+        \App\Models\Admin::factory()->create([
             'name' => 'Admin User',
             'email' => 'admin@example.com',
-            'is_admin' => true,
+            'password' => 'password',
         ]);
 
         $this->call(CourseSeeder::class);

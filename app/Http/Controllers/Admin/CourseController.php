@@ -14,8 +14,6 @@ class CourseController extends Controller
 {
     public function index(): Response
     {
-        $this->authorize('viewAny', Course::class);
-
         $courses = Course::withCount('exercises')->latest()->get();
 
         return Inertia::render('admin/courses/Index', [
@@ -25,8 +23,6 @@ class CourseController extends Controller
 
     public function create(): Response
     {
-        $this->authorize('create', Course::class);
-
         return Inertia::render('admin/courses/Edit', [
             'course' => null,
         ]);
@@ -42,8 +38,6 @@ class CourseController extends Controller
 
     public function edit(Course $course): Response
     {
-        $this->authorize('update', $course);
-
         $course->load('exercises');
 
         return Inertia::render('admin/courses/Edit', [
@@ -61,8 +55,6 @@ class CourseController extends Controller
 
     public function destroy(Course $course): RedirectResponse
     {
-        $this->authorize('delete', $course);
-
         $course->delete();
 
         return redirect()->route('admin.courses.index')
