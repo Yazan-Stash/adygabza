@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Admin;
 use App\Models\Course;
 use App\Models\Exercise;
+use App\Models\Lesson;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -66,10 +67,10 @@ class AdminTest extends TestCase
     public function test_unauthenticated_cannot_create_course(): void
     {
         $this->post('/admin/courses', [
-                'title' => 'French for Beginners',
-                'language_from' => 'English',
-                'language_to' => 'French',
-            ])
+            'title' => 'French for Beginners',
+            'language_from' => 'English',
+            'language_to' => 'French',
+        ])
             ->assertRedirect(route('admin.login'));
     }
 
@@ -118,9 +119,10 @@ class AdminTest extends TestCase
     public function test_admin_can_create_exercise(): void
     {
         $course = Course::factory()->create();
+        $lesson = Lesson::factory()->create(['course_id' => $course->id]);
 
         $this->actingAs($this->admin(), 'admin')
-            ->post("/admin/courses/{$course->id}/exercises", [
+            ->post("/admin/courses/{$course->id}/lessons/{$lesson->id}/exercises", [
                 'type' => 'complete_sentence_input',
                 'prompt' => 'Say hello: ___',
                 'answer' => ['hola'],
@@ -133,26 +135,83 @@ class AdminTest extends TestCase
 
         $this->assertDatabaseHas('exercises', [
             'course_id' => $course->id,
+            'lesson_id' => $lesson->id,
             'type' => 'complete_sentence_input',
+        ]);
+    }
+
+    public function test_admin_can_create_lesson(): void
+    {
+        $course = Course::factory()->create();
+
+        $this->actingAs($this->admin(), 'admin')
+            ->post("/admin/courses/{$course->id}/lessons", [
+                'title' => 'Greetings',
+                'description' => 'Basic greeting phrases.',
+                'order' => 1,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('lessons', [
+            'course_id' => $course->id,
+            'title' => 'Greetings',
+        ]);
+    }
+
+    public function test_admin_can_create_concept_text_exercise(): void
+    {
+        $course = Course::factory()->create();
+        $lesson = Lesson::factory()->create(['course_id' => $course->id]);
+
+        $this->actingAs($this->admin(), 'admin')
+            ->post("/admin/courses/{$course->id}/lessons/{$lesson->id}/exercises", [
+                'type' => 'concept_text',
+                'prompt' => 'Adjectives usually follow nouns in Spanish.',
+                'answer' => 'understood',
+                'options' => null,
+                'explanation' => null,
+                'order' => 2,
+                'metadata' => null,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('exercises', [
+            'course_id' => $course->id,
+            'lesson_id' => $lesson->id,
+            'type' => 'concept_text',
         ]);
     }
 
     public function test_admin_can_delete_exercise(): void
     {
         $course = Course::factory()->create();
-        $exercise = Exercise::factory()->create(['course_id' => $course->id]);
+        $lesson = Lesson::factory()->create(['course_id' => $course->id]);
+        $exercise = Exercise::factory()->create(['course_id' => $course->id, 'lesson_id' => $lesson->id]);
 
         $this->actingAs($this->admin(), 'admin')
-            ->delete("/admin/courses/{$course->id}/exercises/{$exercise->id}")
+            ->delete("/admin/courses/{$course->id}/lessons/{$lesson->id}/exercises/{$exercise->id}")
             ->assertRedirect();
 
         $this->assertDatabaseMissing('exercises', ['id' => $exercise->id]);
     }
 
+    public function test_admin_can_delete_lesson(): void
+    {
+        $course = Course::factory()->create();
+        $lesson = Lesson::factory()->create(['course_id' => $course->id]);
+
+        $this->actingAs($this->admin(), 'admin')
+            ->delete("/admin/courses/{$course->id}/lessons/{$lesson->id}")
+            ->assertRedirect();
+
+        $this->assertDatabaseMissing('lessons', ['id' => $lesson->id]);
+    }
+
     public function test_deleting_course_cascades_to_exercises(): void
     {
         $course = Course::factory()->create();
-        Exercise::factory()->count(3)->create(['course_id' => $course->id]);
+        $lesson = Lesson::factory()->create(['course_id' => $course->id]);
+        Exercise::factory()->count(3)->create(['course_id' => $course->id, 'lesson_id' => $lesson->id]);
 
         $this->actingAs($this->admin(), 'admin')
             ->delete("/admin/courses/{$course->id}");

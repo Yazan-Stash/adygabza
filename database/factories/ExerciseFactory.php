@@ -2,7 +2,9 @@
 
 namespace Database\Factories;
 
+use App\Models\Course;
 use App\Models\Exercise;
+use App\Models\Lesson;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -17,8 +19,12 @@ class ExerciseFactory extends Factory
      */
     public function definition(): array
     {
+        $course = Course::factory()->create();
+        $lesson = Lesson::factory()->create(['course_id' => $course->id]);
+
         return [
-            'course_id' => \App\Models\Course::factory(),
+            'course_id' => $course->id,
+            'lesson_id' => $lesson->id,
             'type' => 'complete_sentence_input',
             'prompt' => 'The word for "hello" is ___.',
             'answer' => ['hola'],

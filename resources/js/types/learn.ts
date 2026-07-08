@@ -12,11 +12,13 @@ export type WordToken = {
 export type ExerciseType =
     | 'complete_sentence_input'
     | 'complete_sentence_mcq'
-    | 'reorder_translation';
+    | 'reorder_translation'
+    | 'concept_text';
 
 export type Exercise = {
     id: number;
     course_id: number;
+    lesson_id: number | null;
     type: ExerciseType;
     prompt: string;
     answer: string | string[];
@@ -31,6 +33,17 @@ export type Exercise = {
     updated_at: string;
 };
 
+export type Lesson = {
+    id: number;
+    course_id: number;
+    title: string;
+    description: string | null;
+    order: number;
+    exercises?: Exercise[];
+    created_at: string;
+    updated_at: string;
+};
+
 export type Course = {
     id: number;
     title: string;
@@ -39,7 +52,8 @@ export type Course = {
     language_to: string;
     is_published: boolean;
     exercises_count?: number;
-    exercises?: Exercise[];
+    lessons_count?: number;
+    lessons?: Lesson[];
     created_at: string;
     updated_at: string;
 };

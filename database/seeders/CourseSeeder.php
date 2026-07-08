@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Course;
-use App\Models\Exercise;
+use App\Models\Lesson;
 use Illuminate\Database\Seeder;
 
 class CourseSeeder extends Seeder
@@ -16,6 +16,13 @@ class CourseSeeder extends Seeder
             'language_from' => 'English',
             'language_to' => 'Spanish',
             'is_published' => true,
+        ]);
+
+        $lesson = Lesson::create([
+            'course_id' => $course->id,
+            'title' => 'Everyday basics',
+            'description' => 'Start with greetings and common phrases.',
+            'order' => 1,
         ]);
 
         $exercises = [
@@ -124,7 +131,10 @@ class CourseSeeder extends Seeder
         ];
 
         foreach ($exercises as $data) {
-            $course->exercises()->create($data);
+            $lesson->exercises()->create([
+                ...$data,
+                'course_id' => $course->id,
+            ]);
         }
     }
 }

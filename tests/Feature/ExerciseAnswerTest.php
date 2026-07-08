@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Course;
 use App\Models\Exercise;
+use App\Models\Lesson;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -107,6 +108,39 @@ class ExerciseAnswerTest extends TestCase
         $response->assertOk()->assertJson(['correct' => false]);
     }
 
+    public function test_concept_text_answer_is_always_correct(): void
+    {
+        $user = User::factory()->create();
+        $exercise = Exercise::factory()->create([
+            'type' => 'concept_text',
+            'prompt' => 'Spanish adjectives usually follow the noun.',
+            'answer' => 'understood',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson(route('exercises.answer', $exercise), ['answer' => 'understood']);
+
+        $response->assertOk()->assertJson(['correct' => true]);
+    }
+
+    public function test_concept_text_answer_completes_without_incrementing_score(): void
+    {
+        $user = User::factory()->create();
+        $exercise = Exercise::factory()->create([
+            'type' => 'concept_text',
+            'answer' => 'understood',
+        ]);
+
+        $this->actingAs($user)
+            ->postJson(route('exercises.answer', $exercise), ['answer' => 'understood']);
+
+        $this->assertDatabaseHas('user_course_progress', [
+            'user_id' => $user->id,
+            'course_id' => $exercise->course_id,
+            'score' => 0,
+        ]);
+    }
+
     public function test_answer_increments_user_score(): void
     {
         $user = User::factory()->create();
@@ -122,6 +156,35 @@ class ExerciseAnswerTest extends TestCase
             'user_id' => $user->id,
             'course_id' => $exercise->course_id,
             'score' => 1,
+        ]);
+    }
+
+    public function test_answer_advances_to_next_lesson_exercise(): void
+    {
+        $user = User::factory()->create();
+        $course = Course::factory()->create();
+        $firstLesson = Lesson::factory()->create(['course_id' => $course->id, 'order' => 1]);
+        $secondLesson = Lesson::factory()->create(['course_id' => $course->id, 'order' => 2]);
+        $firstExercise = Exercise::factory()->create([
+            'course_id' => $course->id,
+            'lesson_id' => $firstLesson->id,
+            'order' => 1,
+            'answer' => ['hola'],
+        ]);
+        $secondExercise = Exercise::factory()->create([
+            'course_id' => $course->id,
+            'lesson_id' => $secondLesson->id,
+            'order' => 1,
+            'answer' => ['adios'],
+        ]);
+
+        $this->actingAs($user)
+            ->postJson(route('exercises.answer', $firstExercise), ['answer' => 'hola']);
+
+        $this->assertDatabaseHas('user_course_progress', [
+            'user_id' => $user->id,
+            'course_id' => $course->id,
+            'current_exercise_id' => $secondExercise->id,
         ]);
     }
 }

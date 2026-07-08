@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
-import type { Course, Exercise } from '@/types/learn';
+import type { Course, Exercise, Lesson } from '@/types/learn';
 
 const props = defineProps<{
-    course: (Course & { exercises?: Exercise[] }) | null;
+    course:
+        | (Course & { lessons?: (Lesson & { exercises?: Exercise[] })[] })
+        | null;
 }>();
 
 defineOptions({
@@ -34,9 +36,21 @@ function submit() {
     }
 }
 
-function deleteExercise(exercise: Exercise) {
+function deleteLesson(lesson: Lesson) {
+    if (
+        !confirm(
+            `Delete lesson #${lesson.order}? This will also delete its exercises.`,
+        )
+    )
+        return;
+    router.delete(`/admin/courses/${props.course!.id}/lessons/${lesson.id}`);
+}
+
+function deleteExercise(lesson: Lesson, exercise: Exercise) {
     if (!confirm(`Delete exercise #${exercise.order}?`)) return;
-    router.delete(`/admin/courses/${props.course!.id}/exercises/${exercise.id}`);
+    router.delete(
+        `/admin/courses/${props.course!.id}/lessons/${lesson.id}/exercises/${exercise.id}`,
+    );
 }
 </script>
 
@@ -53,47 +67,79 @@ function deleteExercise(exercise: Exercise) {
             <form class="space-y-4" @submit.prevent="submit">
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div class="sm:col-span-2">
-                        <label class="mb-1.5 block text-sm font-medium text-foreground">Title *</label>
+                        <label
+                            class="mb-1.5 block text-sm font-medium text-foreground"
+                            >Title *</label
+                        >
                         <input
                             v-model="form.title"
                             type="text"
                             placeholder="e.g. Spanish for Beginners"
                             class="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                         />
-                        <p v-if="form.errors.title" class="mt-1 text-xs text-red-500">{{ form.errors.title }}</p>
+                        <p
+                            v-if="form.errors.title"
+                            class="mt-1 text-xs text-red-500"
+                        >
+                            {{ form.errors.title }}
+                        </p>
                     </div>
 
                     <div>
-                        <label class="mb-1.5 block text-sm font-medium text-foreground">Language From *</label>
+                        <label
+                            class="mb-1.5 block text-sm font-medium text-foreground"
+                            >Language From *</label
+                        >
                         <input
                             v-model="form.language_from"
                             type="text"
                             placeholder="e.g. English"
                             class="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                         />
-                        <p v-if="form.errors.language_from" class="mt-1 text-xs text-red-500">{{ form.errors.language_from }}</p>
+                        <p
+                            v-if="form.errors.language_from"
+                            class="mt-1 text-xs text-red-500"
+                        >
+                            {{ form.errors.language_from }}
+                        </p>
                     </div>
 
                     <div>
-                        <label class="mb-1.5 block text-sm font-medium text-foreground">Language To *</label>
+                        <label
+                            class="mb-1.5 block text-sm font-medium text-foreground"
+                            >Language To *</label
+                        >
                         <input
                             v-model="form.language_to"
                             type="text"
                             placeholder="e.g. Spanish"
                             class="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                         />
-                        <p v-if="form.errors.language_to" class="mt-1 text-xs text-red-500">{{ form.errors.language_to }}</p>
+                        <p
+                            v-if="form.errors.language_to"
+                            class="mt-1 text-xs text-red-500"
+                        >
+                            {{ form.errors.language_to }}
+                        </p>
                     </div>
 
                     <div class="sm:col-span-2">
-                        <label class="mb-1.5 block text-sm font-medium text-foreground">Description</label>
+                        <label
+                            class="mb-1.5 block text-sm font-medium text-foreground"
+                            >Description</label
+                        >
                         <textarea
                             v-model="form.description"
                             rows="3"
                             placeholder="Short course description…"
                             class="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                         />
-                        <p v-if="form.errors.description" class="mt-1 text-xs text-red-500">{{ form.errors.description }}</p>
+                        <p
+                            v-if="form.errors.description"
+                            class="mt-1 text-xs text-red-500"
+                        >
+                            {{ form.errors.description }}
+                        </p>
                     </div>
 
                     <div class="flex items-center gap-3">
@@ -103,7 +149,11 @@ function deleteExercise(exercise: Exercise) {
                             type="checkbox"
                             class="h-4 w-4 rounded border-input accent-emerald-500"
                         />
-                        <label for="is_published" class="text-sm font-medium text-foreground">Published</label>
+                        <label
+                            for="is_published"
+                            class="text-sm font-medium text-foreground"
+                            >Published</label
+                        >
                     </div>
                 </div>
 
@@ -115,68 +165,151 @@ function deleteExercise(exercise: Exercise) {
                     >
                         {{ isEditing ? 'Save Changes' : 'Create Course' }}
                     </button>
-                    <Link href="/admin/courses" class="text-sm text-muted-foreground hover:text-foreground">
+                    <Link
+                        href="/admin/courses"
+                        class="text-sm text-muted-foreground hover:text-foreground"
+                    >
                         Cancel
                     </Link>
                 </div>
             </form>
         </div>
 
-        <!-- Exercises section (edit mode only) -->
-        <div v-if="isEditing" class="rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <!-- Lessons section (edit mode only) -->
+        <div
+            v-if="isEditing"
+            class="rounded-2xl border border-border bg-card p-6 shadow-sm"
+        >
             <div class="mb-4 flex items-center justify-between">
                 <h2 class="text-lg font-semibold text-foreground">
-                    Exercises
-                    <span class="ml-2 text-sm font-normal text-muted-foreground">({{ course!.exercises?.length ?? 0 }})</span>
+                    Lessons
+                    <span class="ml-2 text-sm font-normal text-muted-foreground"
+                        >({{ course!.lessons?.length ?? 0 }})</span
+                    >
                 </h2>
                 <Link
-                    :href="`/admin/courses/${course!.id}/exercises/create`"
+                    :href="`/admin/courses/${course!.id}/lessons/create`"
                     class="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-600"
                 >
-                    + Add Exercise
+                    + Add Lesson
                 </Link>
             </div>
 
-            <div v-if="!course!.exercises?.length" class="rounded-xl border border-dashed border-border py-10 text-center">
-                <p class="text-sm text-muted-foreground">No exercises yet.</p>
+            <div
+                v-if="!course!.lessons?.length"
+                class="rounded-xl border border-dashed border-border py-10 text-center"
+            >
+                <p class="text-sm text-muted-foreground">No lessons yet.</p>
             </div>
 
-            <div v-else class="space-y-2">
+            <div v-else class="space-y-4">
                 <div
-                    v-for="exercise in course!.exercises"
-                    :key="exercise.id"
-                    class="flex items-start gap-4 rounded-xl border border-border bg-background px-4 py-3"
+                    v-for="lesson in course!.lessons"
+                    :key="lesson.id"
+                    class="rounded-xl border border-border bg-background p-4"
                 >
-                    <span class="mt-0.5 shrink-0 rounded-md bg-muted px-2 py-0.5 text-xs font-mono text-muted-foreground">
-                        #{{ exercise.order }}
-                    </span>
-                    <div class="min-w-0 flex-1">
-                        <div class="flex items-center gap-2">
-                            <span :class="[
-                                'rounded-full px-2 py-0.5 text-xs font-semibold',
-                                exercise.type === 'complete_sentence_input' ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300' :
-                                exercise.type === 'complete_sentence_mcq' ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300' :
-                                'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300'
-                            ]">
-                                {{ exercise.type.replace(/_/g, ' ') }}
-                            </span>
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2">
+                                <span
+                                    class="rounded-md bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground"
+                                    >#{{ lesson.order }}</span
+                                >
+                                <h3 class="font-semibold text-foreground">
+                                    {{ lesson.title }}
+                                </h3>
+                            </div>
+                            <p
+                                v-if="lesson.description"
+                                class="mt-1 text-sm text-muted-foreground"
+                            >
+                                {{ lesson.description }}
+                            </p>
                         </div>
-                        <p class="mt-1 truncate text-sm text-foreground">{{ exercise.prompt }}</p>
+                        <div class="flex shrink-0 items-center gap-2">
+                            <Link
+                                :href="`/admin/courses/${course!.id}/lessons/${lesson.id}/exercises/create`"
+                                class="rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-600"
+                            >
+                                Add Exercise
+                            </Link>
+                            <Link
+                                :href="`/admin/courses/${course!.id}/lessons/${lesson.id}/edit`"
+                                class="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                            >
+                                Edit
+                            </Link>
+                            <button
+                                type="button"
+                                class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950/50"
+                                @click="deleteLesson(lesson)"
+                            >
+                                Delete
+                            </button>
+                        </div>
                     </div>
-                    <div class="flex shrink-0 items-center gap-2">
-                        <Link
-                            :href="`/admin/courses/${course!.id}/exercises/${exercise.id}/edit`"
-                            class="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+
+                    <div
+                        v-if="!lesson.exercises?.length"
+                        class="mt-4 rounded-lg border border-dashed border-border py-6 text-center"
+                    >
+                        <p class="text-sm text-muted-foreground">
+                            No exercises in this lesson yet.
+                        </p>
+                    </div>
+
+                    <div v-else class="mt-4 space-y-2">
+                        <div
+                            v-for="exercise in lesson.exercises"
+                            :key="exercise.id"
+                            class="flex items-start gap-4 rounded-lg border border-border bg-card px-4 py-3"
                         >
-                            Edit
-                        </Link>
-                        <button
-                            type="button"
-                            class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950/50"
-                            @click="deleteExercise(exercise)"
-                        >
-                            Delete
-                        </button>
+                            <span
+                                class="mt-0.5 shrink-0 rounded-md bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground"
+                                >#{{ exercise.order }}</span
+                            >
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center gap-2">
+                                    <span
+                                        :class="[
+                                            'rounded-full px-2 py-0.5 text-xs font-semibold',
+                                            exercise.type ===
+                                            'complete_sentence_input'
+                                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                                                : exercise.type ===
+                                                    'complete_sentence_mcq'
+                                                  ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
+                                                  : exercise.type ===
+                                                      'concept_text'
+                                                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                                                    : 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300',
+                                        ]"
+                                    >
+                                        {{ exercise.type.replace(/_/g, ' ') }}
+                                    </span>
+                                </div>
+                                <p
+                                    class="mt-1 truncate text-sm text-foreground"
+                                >
+                                    {{ exercise.prompt }}
+                                </p>
+                            </div>
+                            <div class="flex shrink-0 items-center gap-2">
+                                <Link
+                                    :href="`/admin/courses/${course!.id}/lessons/${lesson.id}/exercises/${exercise.id}/edit`"
+                                    class="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                                >
+                                    Edit
+                                </Link>
+                                <button
+                                    type="button"
+                                    class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950/50"
+                                    @click="deleteExercise(lesson, exercise)"
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

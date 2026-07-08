@@ -2,35 +2,35 @@
 
 namespace App\Models;
 
+use Database\Factories\LessonFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['course_id', 'lesson_id', 'type', 'prompt', 'answer', 'options', 'explanation', 'order', 'metadata'])]
-class Exercise extends Model
+#[Fillable(['course_id', 'title', 'description', 'order'])]
+class Lesson extends Model
 {
+    /** @use HasFactory<LessonFactory> */
     use HasFactory;
 
     protected function casts(): array
     {
         return [
-            'answer' => 'array',
-            'options' => 'array',
-            'metadata' => 'array',
             'order' => 'integer',
         ];
-    }
-
-    /** @return BelongsTo<Lesson, $this> */
-    public function lesson(): BelongsTo
-    {
-        return $this->belongsTo(Lesson::class);
     }
 
     /** @return BelongsTo<Course, $this> */
     public function course(): BelongsTo
     {
         return $this->belongsTo(Course::class);
+    }
+
+    /** @return HasMany<Exercise, $this> */
+    public function exercises(): HasMany
+    {
+        return $this->hasMany(Exercise::class)->orderBy('order');
     }
 }

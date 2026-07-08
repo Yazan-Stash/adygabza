@@ -35,6 +35,7 @@ class ExerciseAnswerController extends Controller
             'complete_sentence_input' => $this->checkInputAnswer($correctAnswer, $userAnswer),
             'complete_sentence_mcq' => $this->checkMcqAnswer($correctAnswer, $userAnswer),
             'reorder_translation' => $this->checkReorderAnswer($correctAnswer, $userAnswer),
+            'concept_text' => true,
             default => false,
         };
     }
@@ -72,8 +73,11 @@ class ExerciseAnswerController extends Controller
 
     private function updateProgress(int $userId, Exercise $exercise, bool $correct): void
     {
+        $exercise->loadMissing('lesson.course');
+        $course = $exercise->lesson->course;
+
         $progress = UserCourseProgress::firstOrCreate(
-            ['user_id' => $userId, 'course_id' => $exercise->course_id],
+            ['user_id' => $userId, 'course_id' => $course->id],
             ['completed_exercise_ids' => [], 'score' => 0]
         );
 
@@ -83,17 +87,16 @@ class ExerciseAnswerController extends Controller
             $completedIds[] = $exercise->id;
             $progress->completed_exercise_ids = $completedIds;
 
-            if ($correct) {
+            if ($correct && $exercise->type !== 'concept_text') {
                 $progress->score += 1;
             }
         }
 
-        $nextExercise = Exercise::where('course_id', $exercise->course_id)
-            ->where('order', '>', $exercise->order)
-            ->orderBy('order')
-            ->first();
+        $exerciseIds = $course->exercises()->pluck('exercises.id')->all();
+        $currentIndex = array_search($exercise->id, $exerciseIds);
+        $nextExerciseId = $currentIndex === false ? null : ($exerciseIds[$currentIndex + 1] ?? null);
 
-        $progress->current_exercise_id = $nextExercise?->id ?? $exercise->id;
+        $progress->current_exercise_id = $nextExerciseId ?? $exercise->id;
         $progress->save();
     }
 }

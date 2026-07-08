@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue';
 import InputExercise from '@/components/learn/InputExercise.vue';
 import MCQExercise from '@/components/learn/MCQExercise.vue';
 import ReorderExercise from '@/components/learn/ReorderExercise.vue';
+import TextExercise from '@/components/learn/TextExercise.vue';
 import TooltipWord from '@/components/learn/TooltipWord.vue';
 import type { Exercise, AnswerResult } from '@/types/learn';
 
@@ -20,10 +21,13 @@ const emit = defineEmits<{
 const result = ref<AnswerResult | null>(null);
 const loading = ref(false);
 
-watch(() => props.exercise.id, () => {
-    result.value = null;
-    loading.value = false;
-});
+watch(
+    () => props.exercise.id,
+    () => {
+        result.value = null;
+        loading.value = false;
+    },
+);
 
 const wordTokens = computed(() => props.exercise.metadata?.word_tokens ?? []);
 
@@ -45,6 +49,10 @@ async function handleSubmit(answer: string | string[]) {
         const data: AnswerResult = await response.json();
         result.value = data;
         emit('answered', data);
+
+        if (props.exercise.type === 'concept_text') {
+            emit('next');
+        }
     } finally {
         loading.value = false;
     }
@@ -67,7 +75,9 @@ function handleNext() {
             <div class="flex-1 overflow-hidden rounded-full bg-muted">
                 <div
                     class="h-2 rounded-full bg-emerald-500 transition-all duration-500"
-                    :style="{ width: `${(exerciseNumber / totalExercises) * 100}%` }"
+                    :style="{
+                        width: `${(exerciseNumber / totalExercises) * 100}%`,
+                    }"
                 />
             </div>
             <span class="shrink-0 text-sm text-muted-foreground">
@@ -77,17 +87,26 @@ function handleNext() {
 
         <!-- Exercise type label -->
         <div class="flex items-center gap-2">
-            <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+            <span
+                class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold tracking-wide text-emerald-700 uppercase dark:bg-emerald-950 dark:text-emerald-300"
+            >
                 {{
-                    exercise.type === 'complete_sentence_input' ? 'Fill in the blank'
-                    : exercise.type === 'complete_sentence_mcq' ? 'Choose the correct word'
-                    : 'Arrange the words'
+                    exercise.type === 'complete_sentence_input'
+                        ? 'Fill in the blank'
+                        : exercise.type === 'complete_sentence_mcq'
+                          ? 'Choose the correct word'
+                          : exercise.type === 'reorder_translation'
+                            ? 'Arrange the words'
+                            : 'New concept'
                 }}
             </span>
         </div>
 
         <!-- Word tokens row (hover translations) -->
-        <div v-if="wordTokens.length > 0" class="flex flex-wrap gap-x-2 gap-y-1 rounded-xl bg-muted/50 px-4 py-3">
+        <div
+            v-if="wordTokens.length > 0"
+            class="flex flex-wrap gap-x-2 gap-y-1 rounded-xl bg-muted/50 px-4 py-3"
+        >
             <TooltipWord
                 v-for="token in wordTokens"
                 :key="token.text"
@@ -114,6 +133,12 @@ function handleNext() {
             :disabled="!!result || loading"
             @submit="handleSubmit"
         />
+        <TextExercise
+            v-else-if="exercise.type === 'concept_text'"
+            :exercise="exercise"
+            :disabled="!!result || loading"
+            @submit="handleSubmit"
+        />
 
         <!-- Feedback panel -->
         <Transition
@@ -124,27 +149,46 @@ function handleNext() {
             <div
                 v-if="result"
                 :class="[
-                    'rounded-xl border-2 p-4 space-y-3',
+                    'space-y-3 rounded-xl border-2 p-4',
                     result.correct
                         ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/50'
                         : 'border-red-400 bg-red-50 dark:bg-red-950/50',
                 ]"
             >
                 <div class="flex items-center gap-2">
-                    <span class="text-xl">{{ result.correct ? '✅' : '❌' }}</span>
-                    <span :class="['font-bold text-lg', result.correct ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300']">
+                    <span class="text-xl">{{
+                        result.correct ? '✅' : '❌'
+                    }}</span>
+                    <span
+                        :class="[
+                            'text-lg font-bold',
+                            result.correct
+                                ? 'text-emerald-700 dark:text-emerald-300'
+                                : 'text-red-700 dark:text-red-300',
+                        ]"
+                    >
                         {{ result.correct ? 'Correct!' : 'Incorrect' }}
                     </span>
                 </div>
 
-                <div v-if="!result.correct" class="text-sm text-muted-foreground">
+                <div
+                    v-if="!result.correct"
+                    class="text-sm text-muted-foreground"
+                >
                     Correct answer:
                     <span class="font-semibold text-foreground">
-                        {{ Array.isArray(result.correct_answer) ? result.correct_answer.join(' / ') : result.correct_answer }}
+                        {{
+                            Array.isArray(result.correct_answer)
+                                ? result.correct_answer.join(' / ')
+                                : result.correct_answer
+                        }}
                     </span>
                 </div>
 
-                <p v-if="result.explanation" class="text-sm text-muted-foreground">
+                <p
+                    v-if="result.explanation"
+                    class="text-sm text-muted-foreground"
+                >
                     {{ result.explanation }}
                 </p>
 
@@ -152,7 +196,9 @@ function handleNext() {
                     type="button"
                     :class="[
                         'w-full rounded-xl py-3 font-semibold text-white transition-colors',
-                        result.correct ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-slate-500 hover:bg-slate-600',
+                        result.correct
+                            ? 'bg-emerald-500 hover:bg-emerald-600'
+                            : 'bg-slate-500 hover:bg-slate-600',
                     ]"
                     @click="handleNext"
                 >

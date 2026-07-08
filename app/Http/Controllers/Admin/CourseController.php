@@ -38,7 +38,7 @@ class CourseController extends Controller
 
     public function edit(Course $course): Response
     {
-        $course->load('exercises');
+        $course->load('lessons.exercises');
 
         return Inertia::render('admin/courses/Edit', [
             'course' => $course,

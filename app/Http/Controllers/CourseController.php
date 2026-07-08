@@ -27,6 +27,7 @@ class CourseController extends Controller
         abort_unless($course->is_published, 404);
 
         $exercises = $course->exercises()->get();
+        $course->load('lessons');
 
         $progress = $request->user()
             ? UserCourseProgress::firstOrCreate(

@@ -23,7 +23,7 @@ class UpdateExerciseRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'type' => ['required', 'string', 'in:complete_sentence_input,complete_sentence_mcq,reorder_translation'],
+            'type' => ['required', 'string', 'in:complete_sentence_input,complete_sentence_mcq,reorder_translation,concept_text'],
             'prompt' => ['required', 'string'],
             'answer' => ['required'],
             'options' => ['nullable', 'array'],

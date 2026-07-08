@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import type { Course, Exercise, ExerciseType, WordToken } from '@/types/learn';
+import type {
+    Course,
+    Exercise,
+    ExerciseType,
+    Lesson,
+    WordToken,
+} from '@/types/learn';
 
 const props = defineProps<{
     course: Course;
+    lesson: Lesson;
     exercise: Exercise | null;
 }>();
 
@@ -24,6 +31,7 @@ const exerciseTypes: { value: ExerciseType; label: string }[] = [
     { value: 'complete_sentence_input', label: 'Fill in the Blank (Input)' },
     { value: 'complete_sentence_mcq', label: 'Fill in the Blank (MCQ)' },
     { value: 'reorder_translation', label: 'Reorder Translation' },
+    { value: 'concept_text', label: 'Concept Text' },
 ];
 
 const form = useForm({
@@ -41,23 +49,38 @@ const form = useForm({
     word_tokens: (props.exercise?.metadata?.word_tokens ?? []) as WordToken[],
 });
 
-const showOptions = computed(() =>
-    form.type === 'complete_sentence_mcq' || form.type === 'reorder_translation'
+const showOptions = computed(
+    () =>
+        form.type === 'complete_sentence_mcq' ||
+        form.type === 'reorder_translation',
 );
+
+const showAnswer = computed(() => form.type !== 'concept_text');
 
 function buildPayload() {
     let answer: string | string[];
-    if (form.type === 'complete_sentence_input') {
-        const parts = form.answer_raw.split(',').map((s) => s.trim()).filter(Boolean);
+    if (form.type === 'concept_text') {
+        answer = 'understood';
+    } else if (form.type === 'complete_sentence_input') {
+        const parts = form.answer_raw
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
         answer = parts.length === 1 ? parts[0] : parts;
     } else if (form.type === 'reorder_translation') {
-        answer = form.answer_raw.split(',').map((s) => s.trim()).filter(Boolean);
+        answer = form.answer_raw
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
     } else {
         answer = form.answer_raw.trim();
     }
 
     const options = showOptions.value
-        ? form.options_raw.split(',').map((s) => s.trim()).filter(Boolean)
+        ? form.options_raw
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean)
         : null;
 
     return {
@@ -67,22 +90,32 @@ function buildPayload() {
         options,
         explanation: form.explanation,
         order: form.order,
-        metadata: form.word_tokens.length > 0 ? { word_tokens: form.word_tokens } : null,
+        metadata:
+            form.word_tokens.length > 0
+                ? { word_tokens: form.word_tokens }
+                : null,
     };
 }
 
 function submit() {
     const payload = buildPayload();
     if (isEditing) {
-        form.transform(() => payload).put(`/admin/courses/${props.course.id}/exercises/${props.exercise!.id}`);
+        form.transform(() => payload).put(
+            `/admin/courses/${props.course.id}/lessons/${props.lesson.id}/exercises/${props.exercise!.id}`,
+        );
     } else {
-        form.transform(() => payload).post(`/admin/courses/${props.course.id}/exercises`);
+        form.transform(() => payload).post(
+            `/admin/courses/${props.course.id}/lessons/${props.lesson.id}/exercises`,
+        );
     }
 }
 
 // Word token helpers
 function addToken() {
-    form.word_tokens = [...form.word_tokens, { text: '', translation: '', parts: [] }];
+    form.word_tokens = [
+        ...form.word_tokens,
+        { text: '', translation: '', parts: [] },
+    ];
 }
 
 function removeToken(i: number) {
@@ -93,7 +126,10 @@ function addPart(tokenIndex: number) {
     const tokens = [...form.word_tokens];
     tokens[tokenIndex] = {
         ...tokens[tokenIndex],
-        parts: [...(tokens[tokenIndex].parts ?? []), { text: '', translation: '' }],
+        parts: [
+            ...(tokens[tokenIndex].parts ?? []),
+            { text: '', translation: '' },
+        ],
     };
     form.word_tokens = tokens;
 }
@@ -102,7 +138,9 @@ function removePart(tokenIndex: number, partIndex: number) {
     const tokens = [...form.word_tokens];
     tokens[tokenIndex] = {
         ...tokens[tokenIndex],
-        parts: (tokens[tokenIndex].parts ?? []).filter((_, i) => i !== partIndex),
+        parts: (tokens[tokenIndex].parts ?? []).filter(
+            (_, i) => i !== partIndex,
+        ),
     };
     form.word_tokens = tokens;
 }
@@ -113,54 +151,100 @@ function removePart(tokenIndex: number, partIndex: number) {
 
     <div class="space-y-8 p-4">
         <form class="space-y-6" @submit.prevent="submit">
-
             <!-- Core fields -->
             <div class="rounded-2xl border border-border bg-card p-6 shadow-sm">
-                <h2 class="mb-5 text-lg font-semibold text-foreground">Exercise Details</h2>
+                <h2 class="mb-5 text-lg font-semibold text-foreground">
+                    Exercise Details
+                </h2>
 
                 <div class="space-y-4">
                     <!-- Type -->
                     <div>
-                        <label class="mb-1.5 block text-sm font-medium text-foreground">Exercise Type *</label>
+                        <label
+                            class="mb-1.5 block text-sm font-medium text-foreground"
+                            >Exercise Type *</label
+                        >
                         <select
                             v-model="form.type"
                             class="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                         >
-                            <option v-for="t in exerciseTypes" :key="t.value" :value="t.value">{{ t.label }}</option>
+                            <option
+                                v-for="t in exerciseTypes"
+                                :key="t.value"
+                                :value="t.value"
+                            >
+                                {{ t.label }}
+                            </option>
                         </select>
                     </div>
 
                     <!-- Order -->
                     <div>
-                        <label class="mb-1.5 block text-sm font-medium text-foreground">Order *</label>
+                        <label
+                            class="mb-1.5 block text-sm font-medium text-foreground"
+                            >Order *</label
+                        >
                         <input
                             v-model.number="form.order"
                             type="number"
                             min="0"
                             class="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                         />
-                        <p v-if="form.errors.order" class="mt-1 text-xs text-red-500">{{ form.errors.order }}</p>
+                        <p
+                            v-if="form.errors.order"
+                            class="mt-1 text-xs text-red-500"
+                        >
+                            {{ form.errors.order }}
+                        </p>
                     </div>
 
                     <!-- Prompt -->
                     <div>
-                        <label class="mb-1.5 block text-sm font-medium text-foreground">Prompt *</label>
+                        <label
+                            class="mb-1.5 block text-sm font-medium text-foreground"
+                            >Prompt *</label
+                        >
                         <textarea
                             v-model="form.prompt"
                             rows="3"
-                            placeholder="The sentence with ___ for blanks, or full sentence for reorder."
+                            :placeholder="
+                                form.type === 'concept_text'
+                                    ? 'Describe the concept the learner should understand.'
+                                    : 'The sentence with ___ for blanks, or full sentence for reorder.'
+                            "
                             class="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                         />
-                        <p v-if="form.errors.prompt" class="mt-1 text-xs text-red-500">{{ form.errors.prompt }}</p>
+                        <p
+                            v-if="form.errors.prompt"
+                            class="mt-1 text-xs text-red-500"
+                        >
+                            {{ form.errors.prompt }}
+                        </p>
                     </div>
 
                     <!-- Answer -->
-                    <div>
-                        <label class="mb-1.5 block text-sm font-medium text-foreground">
+                    <div v-if="showAnswer">
+                        <label
+                            class="mb-1.5 block text-sm font-medium text-foreground"
+                        >
                             Answer *
-                            <span class="ml-1 font-normal text-muted-foreground">
-                                <template v-if="form.type === 'complete_sentence_input'">(comma-separated for multiple accepted answers)</template>
-                                <template v-else-if="form.type === 'reorder_translation'">(comma-separated words in correct order)</template>
+                            <span
+                                class="ml-1 font-normal text-muted-foreground"
+                            >
+                                <template
+                                    v-if="
+                                        form.type === 'complete_sentence_input'
+                                    "
+                                    >(comma-separated for multiple accepted
+                                    answers)</template
+                                >
+                                <template
+                                    v-else-if="
+                                        form.type === 'reorder_translation'
+                                    "
+                                    >(comma-separated words in correct
+                                    order)</template
+                                >
                                 <template v-else>(the correct option)</template>
                             </span>
                         </label>
@@ -168,9 +252,11 @@ function removePart(tokenIndex: number, partIndex: number) {
                             v-model="form.answer_raw"
                             type="text"
                             :placeholder="
-                                form.type === 'complete_sentence_input' ? 'hola, Hola'
-                                : form.type === 'reorder_translation' ? 'Quiero, un, café, por, favor'
-                                : 'Me'
+                                form.type === 'complete_sentence_input'
+                                    ? 'hola, Hola'
+                                    : form.type === 'reorder_translation'
+                                      ? 'Quiero, un, café, por, favor'
+                                      : 'Me'
                             "
                             class="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                         />
@@ -178,21 +264,32 @@ function removePart(tokenIndex: number, partIndex: number) {
 
                     <!-- Options (MCQ / Reorder) -->
                     <div v-if="showOptions">
-                        <label class="mb-1.5 block text-sm font-medium text-foreground">
+                        <label
+                            class="mb-1.5 block text-sm font-medium text-foreground"
+                        >
                             Options *
-                            <span class="ml-1 font-normal text-muted-foreground">(comma-separated)</span>
+                            <span class="ml-1 font-normal text-muted-foreground"
+                                >(comma-separated)</span
+                            >
                         </label>
                         <input
                             v-model="form.options_raw"
                             type="text"
-                            :placeholder="form.type === 'complete_sentence_mcq' ? 'Me, Te, Se, Le' : 'favor, Quiero, café, un, por'"
+                            :placeholder="
+                                form.type === 'complete_sentence_mcq'
+                                    ? 'Me, Te, Se, Le'
+                                    : 'favor, Quiero, café, un, por'
+                            "
                             class="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                         />
                     </div>
 
                     <!-- Explanation -->
                     <div>
-                        <label class="mb-1.5 block text-sm font-medium text-foreground">Explanation</label>
+                        <label
+                            class="mb-1.5 block text-sm font-medium text-foreground"
+                            >Explanation</label
+                        >
                         <textarea
                             v-model="form.explanation"
                             rows="3"
@@ -207,8 +304,12 @@ function removePart(tokenIndex: number, partIndex: number) {
             <div class="rounded-2xl border border-border bg-card p-6 shadow-sm">
                 <div class="mb-4 flex items-center justify-between">
                     <div>
-                        <h2 class="text-lg font-semibold text-foreground">Word Translations</h2>
-                        <p class="mt-0.5 text-sm text-muted-foreground">Hover tooltips shown above the prompt.</p>
+                        <h2 class="text-lg font-semibold text-foreground">
+                            Word Translations
+                        </h2>
+                        <p class="mt-0.5 text-sm text-muted-foreground">
+                            Hover tooltips shown above the prompt.
+                        </p>
                     </div>
                     <button
                         type="button"
@@ -226,7 +327,10 @@ function removePart(tokenIndex: number, partIndex: number) {
                         class="rounded-xl border border-border bg-background p-4"
                     >
                         <div class="mb-3 flex items-center justify-between">
-                            <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Word {{ ti + 1 }}</span>
+                            <span
+                                class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                                >Word {{ ti + 1 }}</span
+                            >
                             <button
                                 type="button"
                                 class="text-xs text-red-500 hover:underline"
@@ -238,7 +342,10 @@ function removePart(tokenIndex: number, partIndex: number) {
 
                         <div class="grid gap-3 sm:grid-cols-2">
                             <div>
-                                <label class="mb-1 block text-xs font-medium text-muted-foreground">Word Text</label>
+                                <label
+                                    class="mb-1 block text-xs font-medium text-muted-foreground"
+                                    >Word Text</label
+                                >
                                 <input
                                     v-model="form.word_tokens[ti].text"
                                     type="text"
@@ -247,7 +354,10 @@ function removePart(tokenIndex: number, partIndex: number) {
                                 />
                             </div>
                             <div>
-                                <label class="mb-1 block text-xs font-medium text-muted-foreground">Translation</label>
+                                <label
+                                    class="mb-1 block text-xs font-medium text-muted-foreground"
+                                    >Translation</label
+                                >
                                 <input
                                     v-model="form.word_tokens[ti].translation"
                                     type="text"
@@ -265,9 +375,14 @@ function removePart(tokenIndex: number, partIndex: number) {
                                 class="grid gap-2 rounded-lg bg-muted/50 p-3 sm:grid-cols-2"
                             >
                                 <div>
-                                    <label class="mb-1 block text-xs font-medium text-muted-foreground">Part</label>
+                                    <label
+                                        class="mb-1 block text-xs font-medium text-muted-foreground"
+                                        >Part</label
+                                    >
                                     <input
-                                        v-model="form.word_tokens[ti].parts![pi].text"
+                                        v-model="
+                                            form.word_tokens[ti].parts![pi].text
+                                        "
                                         type="text"
                                         placeholder="e.g. pre"
                                         class="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-sm outline-none focus:border-emerald-500"
@@ -275,9 +390,15 @@ function removePart(tokenIndex: number, partIndex: number) {
                                 </div>
                                 <div class="flex gap-2">
                                     <div class="flex-1">
-                                        <label class="mb-1 block text-xs font-medium text-muted-foreground">Translation</label>
+                                        <label
+                                            class="mb-1 block text-xs font-medium text-muted-foreground"
+                                            >Translation</label
+                                        >
                                         <input
-                                            v-model="form.word_tokens[ti].parts![pi].translation"
+                                            v-model="
+                                                form.word_tokens[ti].parts![pi]
+                                                    .translation
+                                            "
                                             type="text"
                                             placeholder="e.g. before"
                                             class="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-sm outline-none focus:border-emerald-500"
@@ -314,7 +435,10 @@ function removePart(tokenIndex: number, partIndex: number) {
                 >
                     {{ isEditing ? 'Save Exercise' : 'Create Exercise' }}
                 </button>
-                <Link :href="`/admin/courses/${course.id}/edit`" class="text-sm text-muted-foreground hover:text-foreground">
+                <Link
+                    :href="`/admin/courses/${course.id}/edit`"
+                    class="text-sm text-muted-foreground hover:text-foreground"
+                >
                     Cancel
                 </Link>
             </div>
