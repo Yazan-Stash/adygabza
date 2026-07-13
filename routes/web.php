@@ -9,6 +9,8 @@ use App\Http\Middleware\EnsureIsAdmin;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 
+Route::get('up', fn () => response()->json(['status' => 'ok']))->name('health');
+
 Route::inertia('/', 'Welcome', [
     'canRegister' => Features::enabled(Features::registration()),
 ])->name('home');
